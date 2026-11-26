@@ -69,6 +69,8 @@ details[open] summary { margin-bottom: .8rem; }
 .visibility { font-size: .8rem; font-weight: 650; background: #efedf6; color: #4e3f71; padding: .2rem .55rem; border-radius: .5rem; }
 .visibility.public { background: #e7f2ea; color: #275941; }
 .pager { justify-content: center; padding-block: .5rem; }
+.photo-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; color: var(--muted); }
+.photo-toolbar .pager { padding-block: 0; }
 .photo-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr)); }
 .photo-grid a, .photo-grid img { display: block; width: 100%; border-radius: .7rem; }
 .photo-grid img { aspect-ratio: 4/3; object-fit: contain; background: #e8eeea; }

@@ -1,7 +1,7 @@
 import { ref, shallowRef, watch } from 'vue'
 import { api } from './api'
 
-export function usePaged(path, pageSize = 12) {
+export function usePaged(path, { pageSize = 12, keepPrevious = false } = {}) {
   const page = ref(1)
   const revision = ref(0)
   const data = shallowRef(null)
@@ -12,12 +12,15 @@ export function usePaged(path, pageSize = 12) {
     onCleanup(() => controller.abort())
     loading.value = true
     error.value = null
-    data.value = null
+    if (!keepPrevious) data.value = null
     try {
       const result = await api(`${path}?page=${current}&page_size=${pageSize}`, { signal: controller.signal })
       if (!controller.signal.aborted) data.value = result
     } catch (cause) {
-      if (!controller.signal.aborted) error.value = cause
+      if (!controller.signal.aborted) {
+        data.value = null
+        error.value = cause
+      }
     } finally {
       if (!controller.signal.aborted) loading.value = false
     }

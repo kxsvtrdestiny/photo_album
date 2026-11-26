@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../api'
 import Pagination from '../components/Pagination.vue'
@@ -8,7 +8,14 @@ import { usePaged } from '../paged'
 const props = defineProps({ id: String })
 const route = useRoute()
 const path = `/albums/${encodeURIComponent(props.id)}/photos`
-const { page, data, error, loading, reload } = usePaged(path)
+const { page, data, error, loading, reload } = usePaged(path, { keepPrevious: true })
+const photoRange = computed(() => {
+  if (!data.value.items.length) return `共 ${data.value.total} 张照片`
+  const { page, page_size, total, items } = data.value
+  const start = (page - 1) * page_size + 1
+  const range = items.length === 1 ? start : `${start}–${start + items.length - 1}`
+  return `显示第 ${range} 张，共 ${total} 张照片`
+})
 const busy = ref(false)
 const uploadError = ref('')
 const feedback = ref('')
@@ -34,7 +41,7 @@ async function upload(event) {
 
 <template>
   <p class="back"><RouterLink :to="{ name: 'public' }">← 公开广场</RouterLink></p>
-  <p v-if="loading" class="notice" role="status">正在加载照片…</p>
+  <p v-if="loading && !data" class="notice" role="status">正在加载照片…</p>
   <section v-else-if="error" class="panel">
     <h1>{{ error.status === 403 ? '无权访问此私有相册' : '无法查看相册' }}</h1>
     <p class="notice error" role="alert">
@@ -60,14 +67,18 @@ async function upload(event) {
         <span v-if="feedback" role="status">{{ feedback }}</span>
       </div>
     </form>
-    <p v-if="!data.items.length" class="notice">相册里还没有照片。</p>
-    <ul v-else class="photo-grid" aria-label="照片列表">
+    <div v-if="data.total" class="photo-toolbar">
+      <p role="status">{{ loading ? '正在加载照片…' : photoRange }}</p>
+      <Pagination :page="data.page" :page-size="data.page_size" :total="data.total" :pending="loading" @change="page = $event" />
+    </div>
+    <p v-if="!data.items.length && !data.total" class="notice">相册里还没有照片。</p>
+    <p v-else-if="!data.items.length" class="notice">这一页没有照片。</p>
+    <ul v-else class="photo-grid" aria-label="照片列表" :aria-busy="loading">
       <li v-for="photo in data.items" :key="photo.id">
         <a :href="photo.file_path" target="_blank" rel="noopener">
           <img :src="photo.file_path" :alt="`照片 ${photo.id}`">
         </a>
       </li>
     </ul>
-    <Pagination :page="data.page" :page-size="data.page_size" :total="data.total" @change="page = $event" />
   </template>
 </template>
