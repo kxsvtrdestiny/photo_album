@@ -71,13 +71,21 @@ details[open] summary { margin-bottom: .8rem; }
 .pager { justify-content: center; padding-block: .5rem; }
 .photo-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; color: var(--muted); }
 .photo-toolbar .pager { padding-block: 0; }
-.photo-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr)); }
+html:has(.photo-grid) { scrollbar-gutter: stable; }
+.photo-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .photo-grid a, .photo-grid img { display: block; width: 100%; border-radius: .7rem; }
 .photo-grid img { aspect-ratio: 4/3; object-fit: contain; background: #e8eeea; }
 .upload-panel { justify-items: start; }
 .panel h1 + .notice { margin-block: .8rem; }
+@media (max-width: 60rem) {
+  .photo-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 @media (max-width: 38rem) {
   .header-row { gap: .6rem; }
   .account { margin-left: 0; }
   .form-row { grid-template-columns: 1fr; }
+  .photo-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 26rem) {
+  .photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
