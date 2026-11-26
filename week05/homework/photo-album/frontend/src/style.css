@@ -61,6 +61,7 @@ details[open] summary { margin-bottom: .8rem; }
 .notice { border: 1px solid var(--line); border-radius: .65rem; padding: .7rem .85rem; background: #eef5f0; }
 .notice.error { background: #fff3f1; color: #8a2a23; border-color: #ecc7c2; }
 .notice button { margin-left: .5rem; }
+button.danger { color: #8a2a23; border-color: #ecc7c2; }
 .album-grid, .photo-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: .9rem; }
 .album-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
 .album-card { display: grid; align-content: start; gap: .7rem; }

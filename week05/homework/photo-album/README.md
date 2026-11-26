@@ -1,6 +1,8 @@
 # 个人相册
 
-学校、姓名、学号待本人填写。
+| 学校 | 姓名 | 学号 |
+| --- | --- | --- |
+| 待填写 | 待填写 | 待填写 |
 
 ## 第 1 阶段
 
@@ -65,15 +67,45 @@ JSON 响应用 `code`、`message`、`data` 包装。成功时 `code` 为 0，例
 
 [Windows PowerShell 启动和浏览器验收](docs/phase4-windows.md)
 
-## 后续阶段与最终验收
+## 第 5 阶段与课程验收
 
-下一阶段完成 Nginx 发布与交付，并增加相册主人删除相册的功能。删除前显示确认，后端验证相册归属并处理关联照片。最终从 Nginx 的 `http://127.0.0.1:8088/` 完成验收。`/` 托管 `frontend/dist/`，`/api/` 和 `/uploads/` 均反代 Gin，私有图片直链由 Gin 按相册归属鉴权。
+- [x] Nginx 统一托管 Vue 构建产物并反代 API 和图片
+- [x] Windows 构建、启动、验证、重载、停止步骤
+- [x] 相册主人可以在「我的相册」确认删除相册，处理关联照片
+- [ ] 本机课程录屏与个人信息待提交人完成
 
-| 场景 | 后续验收标准 |
-| --- | --- |
-| 公开内容 | 匿名可浏览公开广场、头像与公开照片。广场显示创建者用户名和头像 |
-| 私有相册及图片直链 | 主人可查看。匿名访问私有照片列表或直链返回 401，其他已登录用户返回 403 |
-| 照片上传 | 仅相册主人可上传。私有图片由同源 HttpOnly Cookie 认证，业务写接口使用 Bearer。退出时清除图片 Cookie |
-| 截图与视频 | 覆盖 Nginx 首页、注册上传头像、私有相册仅在本人列表可见、创建公开相册并上传、公开广场和照片渲染、跨账号 403、Network 同源证据。跨账号验收同时检查私有图片直链和上传权限 |
+技术栈为 Go、Gin、SQLite（ncruces/go-sqlite3）、Vue 3、Vue Router、Vite 和 Nginx。云端集成验收使用 Nginx 1.26.3。Windows 安装后以 `nginx.exe -v` 的输出记录自己的版本。
 
-截图放入 README 或 `docs/screenshots/`。视频命名为 `姓名_学号_photo-album.mp4`，建议不超过 5 分钟，最长 6 分钟。开头用记事本展示学校、姓名、录制日期，并按课程通知的统一话术自我介绍。视频单独提交到老师指定入口，禁止提交到 Git。[视频提交入口](https://f.kdocs.cn/g/picg2EGQ/)
+本地部署顺序为构建前端、启动 Gin、用 `deploy/nginx.conf` 启动 Nginx，然后从 `http://127.0.0.1:8088/` 验收。[Windows PowerShell 部署与课程验收步骤](deploy/README.md)
+
+```mermaid
+flowchart TD
+    Browser["浏览器"] --> Nginx["Nginx :8088"]
+    Nginx -->|"/"| Frontend["frontend/dist"]
+    Nginx -->|"/api/"| API["Gin :8080 业务 API"]
+    Nginx -->|"/uploads/"| Media["Gin :8080 图片鉴权"]
+    API --> DB["SQLite"]
+    Media --> DB
+    Media --> Files["本地上传目录"]
+```
+
+Nginx 用 `index.html` 处理 Vue 客户端路由，缺失的构建资源返回 404。`/api/` 和 `/uploads/` 保留原请求路径并转给 Gin。头像和公开照片允许匿名读取，私有照片列表用 Bearer JWT 校验，图片直链用同源 HttpOnly Cookie 校验。匿名访问私有资源返回 401，其他已登录用户返回 403。上传和删除都要求相册归属匹配。
+
+`DELETE /api/v1/albums/:id` 通过 Bearer 鉴权。成功返回 200，例如 `{"code":0,"message":"ok","data":{"id":7,"cleanup_pending":false}}`。SQLite 在事务中删除相册和所属照片记录；提交后清理该相册独占的照片文件。磁盘清理失败时记日志并返回 `cleanup_pending: true`，对应图片已无法从接口读取。
+
+## 开发中遇到的问题
+
+- Windows 默认 PowerShell 的 Cookie 会话在验收中未转发 `/uploads/` 作用域的 Cookie。接口验收改为显式发送 Cookie，网页流程用 Chromium 验证浏览器会正常保存和清除 Cookie。
+- Windows 临时上传目录丢失时，上传返回 500。保存前现在会创建缺失的目录。
+- 开发代理转发超大 multipart 请求时，曾显示 500。Vite 开发入口提前返回 413，Nginx 入口有独立的请求体限制。
+
+## 加分项
+
+- `GET /api/v1/health` 可通过 Nginx 访问，返回连接到 SQLite 时的健康状态。
+- 相册所有者可删除相册，删除前有确认提示。
+
+## 截图和视频
+
+云端 Chromium 截图见 [验收截图](docs/screenshots/)。提交前按部署文档在自己的 Nginx 入口补拍 Network 同源截图，并核对带 ★ 的各项。截图应覆盖首页、注册头像、本人与广场的私有可见性、公开相册创建和上传、带创建者信息的广场、照片渲染、越权 403 和 Network 同源证据。
+
+视频命名为 `姓名_学号_photo-album.mp4`，建议不超过 5 分钟，最长 6 分钟。开头用记事本展示学校、姓名、录制日期，并按课程通知的统一话术自我介绍。展示项目架构和启动过程，走通注册登录、创建相册、上传、广场、越权拒绝和 Network 验收，然后说明三类 Nginx 路径。视频单独上传，不提交到 Git。截止时间为布置作业后下次上课当天中午 12:00，以课程安排为准。[视频提交入口](https://f.kdocs.cn/g/picg2EGQ/)

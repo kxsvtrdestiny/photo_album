@@ -35,6 +35,7 @@ func (app application) routes(router *gin.Engine, api *gin.RouterGroup) {
 	protected := api.Group("", app.requireAuth)
 	protected.POST("/albums", app.createAlbum)
 	protected.GET("/albums", app.myAlbums)
+	protected.DELETE("/albums/:id", app.deleteAlbum)
 	protected.POST("/albums/:id/photos", app.uploadPhoto)
 }
 
