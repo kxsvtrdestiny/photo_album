@@ -82,6 +82,9 @@ func imageExtension(content []byte) (string, bool) {
 }
 
 func storeImage(directory, extension string, content []byte) (filename string, discard func(*gin.Context), err error) {
+	if err := os.MkdirAll(directory, 0o755); err != nil {
+		return "", nil, err
+	}
 	var randomBytes [16]byte
 	if _, err := rand.Read(randomBytes[:]); err != nil {
 		return "", nil, err
