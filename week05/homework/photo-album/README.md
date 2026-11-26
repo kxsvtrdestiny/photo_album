@@ -21,7 +21,7 @@
 | `PHOTO_ALBUM_DB_PATH` | `data/photo-album.db` |
 | `PHOTO_ALBUM_UPLOAD_DIR` | `uploads` |
 
-相对路径以启动后端时的工作目录为准。从 `frontend/` 运行 `npm ci` 安装锁定的依赖，再运行 `npm run dev`。打开 `http://127.0.0.1:5173/`，页面会请求健康检查并显示连接状态。仍在 `frontend/` 运行 `npm run build` 可生成生产构建。
+相对路径以启动后端时的工作目录为准。从 `frontend/` 运行 `npm ci` 安装锁定的依赖，再运行 `npm run dev`。打开 `http://127.0.0.1:5173/` 进入公开广场。联通状态可通过 `http://127.0.0.1:5173/api/v1/health` 验证。仍在 `frontend/` 运行 `npm run build` 可生成生产构建。
 
 ## 第 2 阶段
 
@@ -56,9 +56,18 @@ JSON 响应用 `code`、`message`、`data` 包装。成功时 `code` 为 0，例
 
 [Windows PowerShell 照片和权限验收](docs/phase3-windows.md)
 
+## 第 4 阶段
+
+- [x] Vue 3 和 Vue Router 接入注册头像、登录、退出及登录状态恢复
+- [x] 我的相册支持创建、可见性标识和分页
+- [x] 公开广场支持匿名浏览、创建者头像和分页
+- [x] 相册详情支持真实图片、分页、本人上传以及权限和失败提示
+
+[Windows PowerShell 启动和浏览器验收](docs/phase4-windows.md)
+
 ## 后续阶段与最终验收
 
-按阶段继续完成前端联调、Nginx 发布与交付。最终从 Nginx 的 `http://127.0.0.1:8088/` 完成验收。`/` 托管 `frontend/dist/`，`/api/` 和 `/uploads/` 均反代 Gin，私有图片直链由 Gin 按相册归属鉴权。
+下一阶段完成 Nginx 发布与交付。最终从 Nginx 的 `http://127.0.0.1:8088/` 完成验收。`/` 托管 `frontend/dist/`，`/api/` 和 `/uploads/` 均反代 Gin，私有图片直链由 Gin 按相册归属鉴权。
 
 | 场景 | 后续验收标准 |
 | --- | --- |

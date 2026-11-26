@@ -1,65 +1,59 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { api } from './api'
+import { session, setSession } from './session'
 
-const loading = ref(false)
-const status = ref('')
+const route = useRoute()
+const router = useRouter()
+const busy = ref(false)
+const error = ref('')
+const user = computed(() => session.value?.user)
 
-async function checkHealth() {
-  loading.value = true
-  status.value = '正在检查…'
+watch(session, (value, previous) => {
+  if (!value && previous && route.meta.protected && !busy.value) {
+    router.replace({ name: 'login', query: { redirect: route.fullPath } })
+  }
+})
+
+async function logout() {
+  busy.value = true
+  error.value = ''
   try {
-    const response = await fetch('/api/v1/health')
-    const result = await response.json()
-    if (!response.ok || result.code !== 0 || result.data?.status !== 'ok') {
-      throw new Error('Health check failed')
-    }
-    status.value = '后端和数据库正常'
-  } catch {
-    status.value = '无法确认服务状态，请检查后端是否已启动。'
+    await api('/logout', { method: 'POST', auth: false })
+    setSession(null)
+    await router.replace({ name: 'public' })
+  } catch (cause) {
+    error.value = cause.message
   } finally {
-    loading.value = false
+    busy.value = false
   }
 }
-
-onMounted(checkHealth)
 </script>
 
 <template>
-  <main>
-    <h1>个人相册</h1>
-    <p role="status">{{ status }}</p>
-    <button type="button" :disabled="loading" @click="checkHealth">重新检查</button>
+  <header class="site-header">
+    <div class="shell header-row">
+      <RouterLink class="brand" :to="{ name: 'public' }">个人相册</RouterLink>
+      <nav aria-label="主导航">
+        <RouterLink :to="{ name: 'public' }">公开广场</RouterLink>
+        <RouterLink :to="{ name: 'mine' }">我的相册</RouterLink>
+      </nav>
+      <div class="account">
+        <template v-if="user">
+          <img v-if="user.avatar_url" :src="user.avatar_url" alt="" class="avatar">
+          <span class="username">{{ user.username }}</span>
+          <button class="secondary" :disabled="busy" @click="logout">{{ busy ? '退出中…' : '退出登录' }}</button>
+        </template>
+        <template v-else>
+          <RouterLink :to="{ name: 'login' }">登录</RouterLink>
+          <RouterLink class="button" :to="{ name: 'register' }">注册</RouterLink>
+        </template>
+      </div>
+    </div>
+  </header>
+  <main class="shell main">
+    <p v-if="error" class="notice error" role="alert">{{ error }}</p>
+    <RouterView :key="route.fullPath + ':' + (user?.id ?? 'guest')" />
   </main>
 </template>
-
-<style>
-body {
-  margin: 0;
-  background: #f5f7fa;
-  color: #182438;
-  font: 1rem/1.6 system-ui, sans-serif;
-}
-
-main {
-  box-sizing: border-box;
-  width: min(100% - 2rem, 38rem);
-  margin: 12vh auto 0;
-  padding: 2rem;
-  background: white;
-  border: 1px solid #dbe3ec;
-  border-radius: 1rem;
-}
-
-h1 {
-  margin: 0;
-}
-
-button {
-  padding: 0.45rem 0.9rem;
-  border: 1px solid #a5b3c6;
-  border-radius: 0.5rem;
-  background: white;
-  color: inherit;
-  font: inherit;
-}
-</style>
