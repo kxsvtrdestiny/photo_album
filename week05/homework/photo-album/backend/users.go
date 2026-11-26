@@ -1,19 +1,10 @@
 package main
 
 import (
-	"bytes"
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"errors"
-	"image"
-	_ "image/jpeg"
-	_ "image/png"
-	"io"
 	"net/http"
-	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -21,14 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ncruces/go-sqlite3"
 	"golang.org/x/crypto/bcrypt"
-	_ "golang.org/x/image/webp"
 )
-
-const maxAvatarBytes = 5 << 20
-
-var avatarFilename = regexp.MustCompile(`^[a-f0-9]{32}\.(jpg|png|webp)$`)
-var errAvatarSize = errors.New("avatar exceeds 5 MiB")
-var errAvatarFormat = errors.New("avatar must be a valid JPEG, PNG or WebP up to 16 megapixels")
 
 type user struct {
 	ID        int64  `json:"id"`
@@ -37,44 +21,18 @@ type user struct {
 }
 
 func (app application) register(c *gin.Context) {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxAvatarBytes+(64<<10))
-	if err := c.Request.ParseMultipartForm(maxAvatarBytes + (64 << 10)); err != nil {
-		var limit *http.MaxBytesError
-		if errors.As(err, &limit) {
-			fail(c, http.StatusRequestEntityTooLarge, "request is too large")
-		} else {
-			fail(c, http.StatusBadRequest, "multipart form required")
-		}
+	if !parseUpload(c) {
 		return
 	}
-	form := c.Request.MultipartForm
-	defer form.RemoveAll()
+	defer c.Request.MultipartForm.RemoveAll()
 	username := strings.TrimSpace(c.Request.PostFormValue("username"))
 	password := c.Request.PostFormValue("password")
 	if username == "" || utf8.RuneCountInString(username) > 64 || len(password) < 8 || len(password) > 72 {
 		fail(c, http.StatusBadRequest, "username must be 1–64 characters and password 8–72 bytes")
 		return
 	}
-	if len(form.File["avatar"]) != 1 {
-		fail(c, http.StatusBadRequest, "one avatar file is required")
-		return
-	}
-	file, err := form.File["avatar"][0].Open()
-	if err != nil {
-		fail(c, http.StatusBadRequest, "cannot read avatar")
-		return
-	}
-	defer file.Close()
-	content, extension, err := readAvatar(file)
-	switch {
-	case errors.Is(err, errAvatarSize):
-		fail(c, http.StatusRequestEntityTooLarge, err.Error())
-	case errors.Is(err, errAvatarFormat):
-		fail(c, http.StatusUnsupportedMediaType, err.Error())
-	case err != nil:
-		fail(c, http.StatusBadRequest, "cannot read avatar")
-	}
-	if err != nil {
+	content, extension, ok := uploadedImage(c, "avatar")
+	if !ok {
 		return
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -82,29 +40,9 @@ func (app application) register(c *gin.Context) {
 		fail(c, http.StatusInternalServerError, "cannot register user")
 		return
 	}
-	var randomBytes [16]byte
-	if _, err := rand.Read(randomBytes[:]); err != nil {
-		fail(c, http.StatusInternalServerError, "cannot store avatar")
-		return
-	}
-	filename := hex.EncodeToString(randomBytes[:]) + extension
-	path := filepath.Join(app.uploadDir, "avatars", filename)
-	destination, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	filename, discard, err := storeImage(filepath.Join(app.uploadDir, "avatars"), extension, content)
 	if err != nil {
-		fail(c, http.StatusInternalServerError, "cannot store avatar")
-		return
-	}
-	keepFile := false
-	defer func() {
-		if !keepFile {
-			if err := os.Remove(path); err != nil {
-				_ = c.Error(err)
-			}
-		}
-	}()
-	_, writeErr := destination.Write(content)
-	closeErr := destination.Close()
-	if writeErr != nil || closeErr != nil {
+		_ = c.Error(err)
 		fail(c, http.StatusInternalServerError, "cannot store avatar")
 		return
 	}
@@ -114,6 +52,7 @@ func (app application) register(c *gin.Context) {
 		INSERT INTO users (username, password, avatar_url) VALUES (?, ?, ?) RETURNING id
 	`, username, string(hash), item.AvatarURL).Scan(&item.ID)
 	if err != nil {
+		discard(c)
 		var dbError *sqlite3.Error
 		if errors.As(err, &dbError) && dbError.ExtendedCode() == sqlite3.CONSTRAINT_UNIQUE {
 			fail(c, http.StatusConflict, "username already exists")
@@ -123,42 +62,12 @@ func (app application) register(c *gin.Context) {
 		}
 		return
 	}
-	keepFile = true
 	success(c, http.StatusCreated, item)
-}
-
-func readAvatar(source io.Reader) ([]byte, string, error) {
-	content, err := io.ReadAll(io.LimitReader(source, maxAvatarBytes+1))
-	if err != nil {
-		return nil, "", err
-	}
-	if len(content) > maxAvatarBytes {
-		return nil, "", errAvatarSize
-	}
-	config, format, err := image.DecodeConfig(bytes.NewReader(content))
-	if err != nil || config.Width <= 0 || config.Height <= 0 || config.Width > 16_000_000/config.Height {
-		return nil, "", errAvatarFormat
-	}
-	var extension string
-	switch format {
-	case "jpeg":
-		extension = ".jpg"
-	case "png":
-		extension = ".png"
-	case "webp":
-		extension = ".webp"
-	default:
-		return nil, "", errAvatarFormat
-	}
-	if _, _, err := image.Decode(bytes.NewReader(content)); err != nil {
-		return nil, "", errAvatarFormat
-	}
-	return content, extension, nil
 }
 
 func (app application) avatar(c *gin.Context) {
 	filename := c.Param("filename")
-	if !avatarFilename.MatchString(filename) {
+	if !imageFilename.MatchString(filename) {
 		fail(c, http.StatusNotFound, "avatar not found")
 		return
 	}

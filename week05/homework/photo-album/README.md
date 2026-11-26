@@ -44,9 +44,21 @@ JSON 响应用 `code`、`message`、`data` 包装。成功时 `code` 为 0，例
 
 [Windows PowerShell 双账号验收](docs/phase2-windows.md)
 
+## 第 3 阶段
+
+| 方法及路径 | 请求与响应 |
+| --- | --- |
+| `POST /api/v1/albums/:id/photos` | 相册主人用 Bearer Token 提交 multipart 字段 `photo`。成功返回 201，照片含 `id`、`album_id`、`file_path`、`file_size`（字节）和 `created_at` |
+| `GET /api/v1/albums/:id/photos` | 可选 Bearer Token。响应含 `album` 摘要、`can_upload`、`items`、`page`、`page_size`、`total`。空相册也有摘要 |
+| `GET /uploads/photos/<filename>` | 公开照片可匿名读取；私有照片用登录时设置的同源 Cookie 鉴权。图片响应禁止缓存 |
+
+公开相册允许匿名读列表和图片。私有相册的列表和图片对匿名访问返回 401，对非主人返回 403。上传公开或私有相册均限本人。上传只接受经解码验证的 JPEG、PNG、WebP，单张上限 5 MiB 和 1600 万像素，同名文件分别保存。
+
+[Windows PowerShell 照片和权限验收](docs/phase3-windows.md)
+
 ## 后续阶段与最终验收
 
-按阶段继续完成照片 API、前端联调、Nginx 发布与交付。最终从 Nginx 的 `http://127.0.0.1:8088/` 完成验收。`/` 托管 `frontend/dist/`，`/api/` 和 `/uploads/` 均反代 Gin，私有图片直链由 Gin 按相册归属鉴权。
+按阶段继续完成前端联调、Nginx 发布与交付。最终从 Nginx 的 `http://127.0.0.1:8088/` 完成验收。`/` 托管 `frontend/dist/`，`/api/` 和 `/uploads/` 均反代 Gin，私有图片直链由 Gin 按相册归属鉴权。
 
 | 场景 | 后续验收标准 |
 | --- | --- |

@@ -59,10 +59,8 @@ func (app application) publicAlbums(c *gin.Context) {
 }
 
 func (app application) listAlbums(c *gin.Context, public bool) {
-	page, pageErr := strconv.ParseInt(c.DefaultQuery("page", "1"), 10, 64)
-	pageSize, sizeErr := strconv.ParseInt(c.DefaultQuery("page_size", "12"), 10, 64)
-	if pageErr != nil || sizeErr != nil || page < 1 || pageSize < 1 || pageSize > 100 {
-		fail(c, http.StatusBadRequest, "page must be positive and page_size between 1 and 100")
+	page, pageSize, ok := pagination(c)
+	if !ok {
 		return
 	}
 
@@ -126,4 +124,15 @@ func (app application) listAlbums(c *gin.Context, public bool) {
 func albumListError(c *gin.Context, err error) {
 	_ = c.Error(err)
 	fail(c, http.StatusInternalServerError, "cannot list albums")
+}
+
+func pagination(c *gin.Context) (page, pageSize int64, ok bool) {
+	page, pageErr := strconv.ParseInt(c.DefaultQuery("page", "1"), 10, 64)
+	pageSize, sizeErr := strconv.ParseInt(c.DefaultQuery("page_size", "12"), 10, 64)
+	if pageErr != nil || sizeErr != nil || page < 1 || pageSize < 1 || pageSize > 100 {
+		fail(c, http.StatusBadRequest, "page must be positive and page_size between 1 and 100")
+		return 0, 0, false
+	}
+
+	return page, pageSize, true
 }

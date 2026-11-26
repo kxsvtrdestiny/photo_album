@@ -29,10 +29,13 @@ func (app application) routes(router *gin.Engine, api *gin.RouterGroup) {
 	api.POST("/logout", app.logout)
 	api.GET("/albums/public", app.publicAlbums)
 	router.GET("/uploads/avatars/:filename", app.avatar)
+	router.GET("/uploads/photos/:filename", app.servePhoto)
+	api.Group("", app.optionalAuth).GET("/albums/:id/photos", app.listPhotos)
 
 	protected := api.Group("", app.requireAuth)
 	protected.POST("/albums", app.createAlbum)
 	protected.GET("/albums", app.myAlbums)
+	protected.POST("/albums/:id/photos", app.uploadPhoto)
 }
 
 func success(c *gin.Context, status int, data any) {
@@ -59,21 +62,42 @@ func (app application) signToken(userID int64) (string, time.Time, error) {
 }
 
 func (app application) requireAuth(c *gin.Context) {
-	parts := strings.Fields(c.GetHeader("Authorization"))
+	app.bearerAuth(c, true)
+}
+
+func (app application) optionalAuth(c *gin.Context) {
+	app.bearerAuth(c, false)
+}
+
+func (app application) bearerAuth(c *gin.Context, required bool) {
+	header := c.GetHeader("Authorization")
+	if header == "" && !required {
+		c.Next()
+		return
+	}
+	parts := strings.Fields(header)
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
 		fail(c, http.StatusUnauthorized, "valid Bearer token required")
 		return
 	}
-	claims := &tokenClaims{}
-	_, err := jwt.ParseWithClaims(parts[1], claims, func(*jwt.Token) (any, error) {
-		return app.jwtKey, nil
-	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithExpirationRequired(), jwt.WithIssuer(tokenIssuer))
-	if err != nil || claims.UserID <= 0 {
+	userID := app.tokenUser(parts[1])
+	if userID == 0 {
 		fail(c, http.StatusUnauthorized, "invalid or expired token")
 		return
 	}
-	c.Set("userID", claims.UserID)
+	c.Set("userID", userID)
 	c.Next()
+}
+
+func (app application) tokenUser(token string) int64 {
+	claims := &tokenClaims{}
+	_, err := jwt.ParseWithClaims(token, claims, func(*jwt.Token) (any, error) {
+		return app.jwtKey, nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithExpirationRequired(), jwt.WithIssuer(tokenIssuer))
+	if err != nil || claims.UserID <= 0 {
+		return 0
+	}
+	return claims.UserID
 }
 
 func (app application) setImageCookie(c *gin.Context, token string, expiry time.Time, maxAge int) {

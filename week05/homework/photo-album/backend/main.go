@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS photos (
 	file_size INTEGER,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS photos_album_id ON photos (album_id, id);
+CREATE INDEX IF NOT EXISTS photos_file_path ON photos (file_path);
 `
 
 func setting(name, fallback string) string {
@@ -88,8 +90,10 @@ func run() error {
 	}
 
 	uploadDir := setting("PHOTO_ALBUM_UPLOAD_DIR", "uploads")
-	if err := os.MkdirAll(filepath.Join(uploadDir, "avatars"), 0o755); err != nil {
-		return fmt.Errorf("initialize uploads: %w", err)
+	for _, folder := range []string{"avatars", "photos"} {
+		if err := os.MkdirAll(filepath.Join(uploadDir, folder), 0o755); err != nil {
+			return fmt.Errorf("initialize uploads: %w", err)
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
