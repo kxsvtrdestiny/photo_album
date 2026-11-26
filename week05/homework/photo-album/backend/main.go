@@ -82,8 +82,13 @@ func createTables(ctx context.Context, db *sql.DB) error {
 }
 
 func run() error {
+	key := os.Getenv("PHOTO_ALBUM_JWT_SECRET")
+	if len(key) < 32 {
+		return fmt.Errorf("PHOTO_ALBUM_JWT_SECRET must be set to at least 32 bytes")
+	}
+
 	uploadDir := setting("PHOTO_ALBUM_UPLOAD_DIR", "uploads")
-	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(uploadDir, "avatars"), 0o755); err != nil {
 		return fmt.Errorf("initialize uploads: %w", err)
 	}
 
@@ -101,6 +106,8 @@ func run() error {
 	}
 	router.Use(gin.Logger(), gin.Recovery())
 	api := router.Group("/api/v1")
+	app := application{db: db, uploadDir: uploadDir, jwtKey: []byte(key), secureCookies: os.Getenv("PHOTO_ALBUM_COOKIE_SECURE") == "true"}
+	app.routes(router, api)
 	api.GET("/health", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second)
 		defer cancel()
