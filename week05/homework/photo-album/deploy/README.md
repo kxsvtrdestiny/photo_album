@@ -46,13 +46,27 @@ go run .
 
 ## 3. 检查并启动 Nginx
 
+先确认 Nginx 已解压。若它位于带版本号的子目录，在任意 PowerShell 窗口运行下列命令。预期输出 `nginx.exe` 的完整路径，将该文件的父目录填入后面命令的 `$nginxHome`。
+
+```powershell
+Get-ChildItem -LiteralPath 'D:\' -Directory -Filter 'nginx*' |
+  ForEach-Object { Get-ChildItem -LiteralPath $_.FullName -Filter nginx.exe -File -Recurse } |
+  Select-Object -ExpandProperty FullName
+```
+
+如果没有输出，请先从官网下载 Windows ZIP 并解压到 D 盘。
+
 在窗口 C 从任意目录设置路径，然后切到 Nginx 解压目录。命令把仓库中的模板渲染到 Nginx 的 `conf\photo-album.conf`。渲染使用 `dist` 的绝对路径并将反斜杠替换成正斜杠，保留配置中的路径引号。
 
 ```powershell
 $project = 'D:\photo_album-phase5\week05\homework\photo-album'
 $nginxHome = 'D:\nginx'
 $dist = (Resolve-Path -LiteralPath (Join-Path $project 'frontend\dist') -ErrorAction Stop).Path.Replace('\','/')
-Set-Location -LiteralPath $nginxHome
+if (-not (Test-Path -LiteralPath (Join-Path $nginxHome 'nginx.exe') -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $nginxHome 'conf\mime.types') -PathType Leaf)) {
+  throw "请将 nginxHome 指向包含 nginx.exe 和 conf\mime.types 的 Nginx 解压目录。"
+}
+Set-Location -LiteralPath $nginxHome -ErrorAction Stop
 New-Item -ItemType Directory -Force -Path .\logs | Out-Null
 $source = Get-Content -Raw -LiteralPath (Join-Path $project 'deploy\nginx.conf')
 $config = Join-Path $nginxHome 'conf\photo-album.conf'
