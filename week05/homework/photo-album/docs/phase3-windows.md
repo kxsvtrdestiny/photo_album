@@ -63,8 +63,8 @@ $a = (curl.exe -fsS -F "username=$nameA" -F "password=$pw" -F "avatar=@$one" "$a
 $b = (curl.exe -fsS -F "username=$nameB" -F "password=$pw" -F "avatar=@$one" "$api/register" | ConvertFrom-Json).data
 $a, $b | Format-Table id, username, avatar_url
 
-$loginA = Invoke-RestMethod -Uri "$api/login" -Method Post -ContentType 'application/json' -Body (@{username=$nameA; password=$pw} | ConvertTo-Json) -SessionVariable sessionA
-$loginB = Invoke-RestMethod -Uri "$api/login" -Method Post -ContentType 'application/json' -Body (@{username=$nameB; password=$pw} | ConvertTo-Json) -SessionVariable sessionB
+$loginA = Invoke-RestMethod -Uri "$api/login" -Method Post -ContentType 'application/json' -Body (@{username=$nameA; password=$pw} | ConvertTo-Json)
+$loginB = Invoke-RestMethod -Uri "$api/login" -Method Post -ContentType 'application/json' -Body (@{username=$nameB; password=$pw} | ConvertTo-Json)
 $tokenA = $loginA.data.token
 $tokenB = $loginB.data.token
 $ha = @{Authorization="Bearer $tokenA"}
@@ -117,13 +117,12 @@ curl.exe -fsS "$root$($p2.file_path)" -o "$dl2"
 (Get-FileHash $two).Hash -eq (Get-FileHash $dl2).Hash
 
 $privateLink = "$root$($p3.file_path)"
-$cookieB = $sessionB.Cookies.GetCookieHeader([uri]$privateLink)
-(Invoke-WebRequest -UseBasicParsing -Uri $privateLink -WebSession $sessionA).StatusCode
+curl.exe -sS -o NUL -w '%{http_code}\n' -b "photo_album_token=$tokenA" "$privateLink"
 curl.exe -sS -o NUL -w '%{http_code}\n' "$privateLink"
-curl.exe -sS -o NUL -w '%{http_code}\n' -b "$cookieB" "$privateLink"
+curl.exe -sS -o NUL -w '%{http_code}\n' -b "photo_album_token=$tokenB" "$privateLink"
 ```
 
-两个哈希比较都应为 `True`，证明匿名可以完整下载两张公开图片，且两张同名文件各自保留原内容。最后三行依次返回 `200`、`401`、`403`。A 和 B 这里使用的是登录时设置的图片 Cookie。
+两个哈希比较都应为 `True`，证明匿名可以完整下载两张公开图片，且两张同名文件各自保留原内容。最后三行依次返回 `200`、`401`、`403`。这里用 curl 显式发送图片 Cookie，值是登录接口同时返回的 JWT。这样可避开 Windows PowerShell 的 Cookie 会话对 `/uploads/` 路径的处理差异。
 
 ## 5. 文件校验
 
