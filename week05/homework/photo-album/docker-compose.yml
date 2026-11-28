@@ -1,0 +1,35 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      GIN_MODE: release
+      PHOTO_ALBUM_ADDR: 0.0.0.0:8080
+      PHOTO_ALBUM_DB_PATH: /data/album.db
+      PHOTO_ALBUM_UPLOAD_DIR: /data/uploads
+    volumes:
+      - album-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-Y", "off", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/api/v1/health"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+
+  nginx:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8088:8088"
+    healthcheck:
+      test: ["CMD", "wget", "-Y", "off", "-q", "-O", "/dev/null", "http://127.0.0.1:8088/api/v1/health"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+
+volumes:
+  album-data:

@@ -104,6 +104,24 @@ Nginx 用 `index.html` 处理 Vue 客户端路由，缺失的构建资源返回 
 - `GET /api/v1/health` 可通过 Nginx 访问，返回连接到 SQLite 时的健康状态。
 - 相册所有者可删除相册，删除前有确认提示。
 
+### Docker Compose 一键启动（Windows）
+
+打开 Docker Desktop，使用 Linux 容器。如果 Windows 手动部署的 Nginx 正占用 `8088`，先按 [部署文档](deploy/README.md) 停止那套 Nginx。在 PowerShell 中执行以下命令。项目解压路径不同时，替换第一行。
+
+```powershell
+Set-Location 'D:\photo_album-phase5\week05\homework\photo-album'
+docker compose config -q
+docker compose up --build -d --wait
+docker compose ps
+(Invoke-WebRequest -UseBasicParsing 'http://127.0.0.1:8088/').StatusCode
+(Invoke-RestMethod 'http://127.0.0.1:8088/api/v1/health').data.status
+Start-Process 'http://127.0.0.1:8088/'
+```
+
+首次启动会下载镜像和依赖，在镜像内执行前端构建并编译 Go。预期两个服务均显示 `healthy`，首页返回 `200`，健康接口输出 `ok`，浏览器打开公开广场。公开浏览、登录和图片访问均通过 Nginx 的 `8088` 入口。
+
+在同一项目目录运行 `docker compose down` 停止。Compose 使用独立的具名卷 `album-data`，保存 SQLite、上传文件和首次启动生成的 JWT 密钥。普通 `down` 后重新启动仍使用该卷。
+
 ## 截图和视频
 
 云端 Chromium 截图见 [验收截图](docs/screenshots/)。提交前按部署文档在自己的 Nginx 入口补拍 Network 同源截图，并核对带 ★ 的各项。截图应覆盖首页、注册头像、本人与广场的私有可见性、公开相册创建和上传、带创建者信息的广场、照片渲染、越权 403 和 Network 同源证据。

@@ -1,0 +1,15 @@
+**
+!backend/
+!backend/*.go
+!backend/go.mod
+!backend/go.sum
+!backend/docker-entrypoint.sh
+!deploy/
+!deploy/nginx.conf
+!frontend/
+!frontend/index.html
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/vite.config.js
+!frontend/src/
+!frontend/src/**
